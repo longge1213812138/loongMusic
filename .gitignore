@@ -1,0 +1,19 @@
+# 临时文件与构建产物
+temp/
+temp.*/
+_out*/
+out/
+build/
+dist/
+
+# 日志
+*.log
+
+# 系统文件
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# 编辑器
+.vscode/
+.idea/
