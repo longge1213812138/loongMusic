@@ -246,9 +246,13 @@
   .time { font-size: 11px; color: #9aa1b2; width: 40px; flex: none; text-align: center; font-variant-numeric: tabular-nums; }
   .progress-track {
     flex: 1; height: 5px; background: #e8eaf1; border-radius: 3px;
-    position: relative; cursor: pointer;
+    position: relative; cursor: pointer; touch-action: none;   /* 触屏拖动时不被页面滚动打断 */
   }
   .progress-track::before { content: ""; position: absolute; inset: -8px 0; }
+  .progress-track.dragging { cursor: grabbing; }
+  .progress-track.dragging .progress-thumb {
+    opacity: 1; transform: translate(-50%, -50%) scale(1.2);
+  }
   .progress-fill {
     position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
     background: linear-gradient(90deg, var(--accent), var(--accent-2));
@@ -511,7 +515,7 @@ const state = {
   urlCache: new Map(),  // key -> mp3 直链（会话内缓存）
   lyric: { lines: [], idx: -1, offset: 0 },
   consecutiveErr: 0,
-  seeking: false,
+  seek: { active: false, ratio: 0 },   // 进度条拖动状态（预览中不触碰音频）
   view: { type: "search" },   // search | recent | playlist(id)
   recent: [],           // 最近播放
   playlists: [],        // 本地歌单
@@ -758,6 +762,7 @@ async function playSong(i) {
   const song = state.results[i];
   state.cur = i;
   state.consecutiveErr = 0;
+  resetSeek();   // 切歌时进度条/拖动状态复位
   renderPlayingRow();
   updateNowPlaying(song);
   resetLyric();
@@ -1115,34 +1120,89 @@ function updatePlayIcon() {
   $("iconPause").style.display = playing ? "" : "none";
 }
 
-/* ---------- 进度条 ---------- */
+/* ---------- 进度条 ----------
+ * 拖动采用"预览 + 提交"两段式：
+ *  按下/移动 → 仅更新滑块与时间显示（不触碰音频，避免连续 seek 卡顿）
+ *  松开     → 一次性 seek 到目标位置，从该处继续播放
+ */
 function updateProgress() {
-  if (state.seeking) return;
+  if (state.seek.active) return;   // 拖动中显示由 seekPreview 接管
   const d = audio.duration || 0, t = audio.currentTime || 0;
   const pct = d ? (t / d) * 100 : 0;
   $("progressFill").style.width = pct + "%";
   $("progressThumb").style.left = pct + "%";
   $("curTime").textContent = fmtTime(t);
   $("durTime").textContent = fmtTime(d);
+  $("progressTrack").setAttribute("aria-valuenow", Math.round(pct));
   syncLyric(false);
+}
+
+function seekPreview(ratio) {
+  state.seek.ratio = ratio;
+  const d = audio.duration || 0;
+  const pct = (ratio * 100).toFixed(2) + "%";
+  $("progressFill").style.width = pct;
+  $("progressThumb").style.left = pct;
+  $("curTime").textContent = fmtTime(ratio * d);   // 时间跟随滑块；总时长不变
+}
+
+function commitSeek(ratio) {
+  const d = audio.duration;
+  if (!isFinite(d) || d <= 0) { updateProgress(); return; }
+  let t = ratio * d;
+  if (t >= d - 0.25) t = Math.max(0, d - 0.25);   // 拖到结尾：留 0.25s 缓冲，播完自然切下一首
+  audio.currentTime = t;
+  updateProgress();   // 松手后恢复实时更新，并立即显示落点
+}
+
+function resetSeek() {
+  state.seek.active = false;
+  $("progressTrack").classList.remove("dragging");
 }
 
 function bindProgress() {
   const track = $("progressTrack");
-  function seekTo(e) {
+  const ratioOf = (e) => {
     const rect = track.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    if (isFinite(audio.duration)) audio.currentTime = ratio * audio.duration;
-    updateProgress();
-  }
+    return Math.min(1, Math.max(0, (e.clientX - rect.left) / (rect.width || 1)));
+  };
   track.addEventListener("pointerdown", (e) => {
-    if (!isFinite(audio.duration)) return;
-    state.seeking = true;
-    track.setPointerCapture(e.pointerId);
-    seekTo(e);
+    const d = audio.duration;
+    if (!isFinite(d) || d <= 0) { toast("歌曲还未加载完成，暂时不能拖动进度"); return; }
+    state.seek.active = true;
+    track.classList.add("dragging");
+    try { track.setPointerCapture(e.pointerId); } catch (err) { /* 合成事件等场景忽略 */ }
+    seekPreview(ratioOf(e));
   });
-  track.addEventListener("pointermove", (e) => { if (state.seeking) seekTo(e); });
-  track.addEventListener("pointerup", () => { state.seeking = false; });
+  track.addEventListener("pointermove", (e) => {
+    if (!state.seek.active) return;
+    seekPreview(ratioOf(e));
+  });
+  const endDrag = () => {
+    if (!state.seek.active) return;
+    state.seek.active = false;
+    track.classList.remove("dragging");
+    commitSeek(state.seek.ratio);
+  };
+  track.addEventListener("pointerup", endDrag);
+  track.addEventListener("pointercancel", endDrag);   // 触屏被系统手势打断等情况
+  // 键盘可访问性：聚焦后 ←/±5s
+  track.tabIndex = 0;
+  track.setAttribute("role", "slider");
+  track.setAttribute("aria-label", "播放进度");
+  track.setAttribute("aria-valuemin", "0");
+  track.setAttribute("aria-valuemax", "100");
+  track.addEventListener("keydown", (e) => {
+    const d = audio.duration;
+    if (!isFinite(d) || d <= 0) return;
+    if (e.key === "ArrowRight") {
+      e.preventDefault();
+      commitSeek(Math.min(1, (audio.currentTime + 5) / d));
+    } else if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      commitSeek(Math.max(0, (audio.currentTime - 5) / d));
+    }
+  });
 }
 
 /* ---------- 事件绑定 ---------- */
@@ -1156,6 +1216,7 @@ $("playBtn").addEventListener("click", () => {
 
 $("prevBtn").addEventListener("click", () => playNext(-1, false));
 $("nextBtn").addEventListener("click", () => playNext(1, false));
+bindProgress();   // 进度条：点击/拖动/键盘（含预览-提交两段式逻辑）
 
 const MODE_TEXT = { order: "顺序", loop: "单曲", shuffle: "随机" };
 function applyMode() {
