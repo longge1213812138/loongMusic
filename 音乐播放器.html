@@ -421,7 +421,7 @@
  * 零依赖：原生 HTML/CSS/JS
  * ============================================================ */
 
-const API = "https://www.yinyueku.cn/api.php";
+/* API 端点常量定义在下方请求层（含 HTTPS/HTTP 两个地址，供降级使用） */
 const PAGE_SIZE = 30;
 const SOURCE_LABEL = { netease: "网易云", tencent: "QQ音乐", kugou: "酷狗", kuwo: "酷我", migu: "咪咕" };
 
@@ -450,29 +450,82 @@ function fmtTime(sec) {
  * 两种模式：
  *  A. 页面由本地代理服务（server.py）提供时（http/https 同源）→ fetch /api 代理转发，
  *     由代理忽略上游证书问题（当前站点 TLS 证书已过期）
- *  B. file:// 直接打开 → JSONP 直连站点（站点修复证书后可用）
+ *  B. file:// 直接打开 → JSONP 直连站点；HTTPS 握手失败时自动降级到 HTTP（见下）
+ *
+ * 为什么需要降级：站点证书已过期（TrustAsia DV，notAfter 2025-08-12），
+ * 浏览器会以 net::ERR_CERT_DATE_INVALID 直接拒绝 HTTPS 子资源。
+ * 该站虽有 Strict-Transport-Security 响应头，但 HTTPS 从未成功访问过，
+ * HSTS 并未写入生效 → HTTP 仍可正常返回数据。
+ *
+ * 降级原则（不写死 HTTP）：
+ *   1. 一律先发 HTTPS；只有 HTTPS 确实失败、且页面自身不是 HTTPS
+ *      （file:// 或 http://；HTTPS 页面加载 HTTP 子资源会被浏览器按混合内容拦截）
+ *      才用 HTTP 重试，且仅重试一次；
+ *   2. 站点证书一旦修复，HTTPS 首次尝试即成功，降级分支自然不会再执行 → 无技术债残留。
  */
+const API_PATH = "/api.php";
+const API_HTTPS = "https://www.yinyueku.cn" + API_PATH;
+const API_HTTP = "http://www.yinyueku.cn" + API_PATH;
+const PAGE_SECURE = location.protocol === "https:";
 const PROXY_MODE = location.protocol === "http:" || location.protocol === "https:";
 
-let jsonpSeq = 0;
-function jsonpDirect(params) {
+const JSONP_TIMEOUT = 15000;        // 常规超时
+const JSONP_TIMEOUT_HTTPS = 8000;   // 首次 HTTPS 尝试的超时：失败时尽快让位给降级
+let jsonpSeq = 0;                   // 回调名自增序号（严格模式下必须先声明）
+let downgradeNotified = false;      // 降级提示只弹一次，避免每次请求都打扰
+
+/* 单次 JSONP 尝试。
+ * JSONP 没有状态码可读，失败只能靠 onerror 与超时识别：
+ *   - settled 标志保证回调只结算一次（防止重复/延迟回调导致 Promise 二次触发）
+ *   - 所有结算出口都执行 cleanup：清定时器、摘 script 节点、释放回调 → 请求不会悬挂 */
+function jsonpOnce(baseUrl, params, timeout) {
   return new Promise((resolve, reject) => {
     const cbName = "__ym_cb_" + (++jsonpSeq) + "_" + Date.now();
     const script = document.createElement("script");
-    const timer = setTimeout(() => { cleanup(); reject(new Error("请求超时")); }, 15000);
+    let settled = false;
+    const timer = setTimeout(() => finish(false, new Error("请求超时")), timeout);
     function cleanup() {
       clearTimeout(timer);
+      script.onload = script.onerror = null;
       try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
       if (script.parentNode) script.parentNode.removeChild(script);
     }
-    window[cbName] = (data) => { cleanup(); resolve(data); };
-    script.onerror = () => { cleanup(); reject(new Error("网络错误（file:// 直开受站点证书影响，请改用 启动播放器.bat）")); };
+    function finish(ok, payload) {
+      if (settled) return;   // 已结算：忽略迟到的 onerror / 重复回调
+      settled = true;
+      cleanup();
+      if (ok) resolve(payload); else reject(payload);
+    }
+    window[cbName] = (data) => finish(true, data);
+    script.onerror = () => finish(false, new Error("网络请求失败"));
     const qs = new URLSearchParams();
     qs.set("callback", cbName);
     for (const k in params) qs.set(k, params[k]);
-    script.src = API + "?" + qs.toString();
+    script.src = baseUrl + "?" + qs.toString();
     document.head.appendChild(script);
   });
+}
+
+/* 统一入口：先 HTTPS；确实失败且条件允许时才降级到 HTTP（仅一次） */
+async function jsonpWithFallback(params) {
+  try {
+    return await jsonpOnce(API_HTTPS, params, JSONP_TIMEOUT_HTTPS);
+  } catch (httpsErr) {
+    if (PAGE_SECURE) {
+      throw new Error("HTTPS 请求失败：" + httpsErr.message + "（HTTPS 页面不允许加载 HTTP 子资源，无法降级）");
+    }
+    try {
+      const data = await jsonpOnce(API_HTTP, params, JSONP_TIMEOUT);
+      if (!downgradeNotified) {
+        downgradeNotified = true;
+        // 延后到当前提示淡出后再显示，避免被"共找到 N 条"之类的即时提示覆盖
+        setTimeout(() => toast("站点 HTTPS 证书已失效，已自动改用 HTTP 连接"), 2200);
+      }
+      return data;
+    } catch (httpErr) {
+      throw new Error("HTTPS 证书失效且 HTTP 也不可用：请检查本机网络能否访问 www.yinyueku.cn（证书拦截场景可改用本地代理服务中转）");
+    }
+  }
 }
 
 async function apiRequest(params) {
@@ -485,7 +538,7 @@ async function apiRequest(params) {
     try { return JSON.parse(text); }
     catch (e) { throw new Error("返回数据解析失败"); }
   }
-  return jsonpDirect(params);
+  return jsonpWithFallback(params);
 }
 
 /* sign 机制：sign 随搜索结果下发且有时效，请求 url/pic/lyric 必须携带；
