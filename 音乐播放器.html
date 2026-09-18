@@ -189,6 +189,98 @@
     color: #fff; display: inline-flex; align-items: center; gap: 5px;
   }
   .playall-btn:hover { filter: brightness(1.08); }
+  .import-btn {
+    flex: none; font-size: 12.5px; padding: 7px 14px; border-radius: 16px;
+    background: #eceafd; color: var(--accent);
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .import-btn:hover { background: #e0ddfb; }
+
+  /* ---------- 在线歌单（同步） ---------- */
+  .sb-acct {
+    display: flex; align-items: center; gap: 7px; padding: 7px 8px;
+    border-radius: 9px; cursor: pointer; font-size: 13px; color: #454b59;
+    transition: background .15s; flex: none;
+  }
+  .sb-acct:hover { background: #f1f2f9; }
+  .sb-acct .caret {
+    flex: none; width: 11px; color: #b3b8c6; font-size: 9px;
+    transition: transform .15s; transform: rotate(0deg);
+  }
+  .sb-acct.open .caret { transform: rotate(90deg); }
+  .sb-acct .avatar {
+    flex: none; width: 21px; height: 21px; border-radius: 50%; object-fit: cover;
+    background: #eceafd; display: grid; place-items: center;
+    font-size: 10px; color: var(--accent); overflow: hidden;
+  }
+  .sb-acct .nick {
+    flex: 1; min-width: 0; white-space: nowrap; overflow: hidden;
+    text-overflow: ellipsis; font-weight: 600;
+  }
+  .sb-acct .pf {
+    flex: none; font-size: 10px; padding: 1px 5px; border-radius: 4px;
+    color: #fff; font-weight: 400;
+  }
+  .sb-acct .pf.netease { background: #e8443a; }
+  .sb-acct .pf.tencent { background: #2bb673; }
+  .sb-acct .acct-act {
+    flex: none; width: 19px; height: 19px; border-radius: 5px; display: none;
+    place-items: center; color: #9aa1b2; font-size: 12px; line-height: 1;
+  }
+  .sb-acct:hover .acct-act { display: grid; }
+  .sb-acct .acct-act:hover { background: #e3e5ef; color: var(--text); }
+  .sb-sub { padding-left: 4px; }
+  .sb-sub .sb-item { font-size: 13px; padding: 7px 8px 7px 14px; }
+  .sb-sub .sb-item .sb-name { color: #5b6170; font-weight: 400; }
+  .sb-sub .sb-item.active .sb-name { color: var(--accent); font-weight: 600; }
+  .sb-sub .sb-item .sb-count { font-size: 10.5px; }
+
+  /* ---------- 同步弹窗 ---------- */
+  #syncMask {
+    position: fixed; inset: 0; z-index: 92; display: none;
+    background: rgba(31,36,48,.30);
+  }
+  #syncMask.show { display: block; }
+  #syncPop {
+    position: fixed; left: 50%; top: 46%; transform: translate(-50%,-50%);
+    z-index: 93; display: none;
+    width: min(370px, calc(100vw - 28px));
+    background: #fff; border-radius: 16px; padding: 20px;
+    box-shadow: 0 20px 56px rgba(31,36,48,.24); border: 1px solid var(--border);
+  }
+  #syncPop.show { display: block; }
+  .sync-head { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .sync-sub { font-size: 12px; color: #9aa1b2; margin-bottom: 14px; line-height: 1.6; }
+  .sync-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .sync-tab {
+    flex: 1; padding: 9px 0; border-radius: 10px; font-size: 13px;
+    color: #6b7280; background: #f4f5fa; transition: background .15s, color .15s;
+  }
+  .sync-tab:hover { background: #eceef5; }
+  .sync-tab[data-pf="netease"].active { color: #d63a30; background: #fdecea; font-weight: 600; }
+  .sync-tab[data-pf="tencent"].active { color: #148f5e; background: #e7f7f0; font-weight: 600; }
+  .sync-input {
+    width: 100%; padding: 11px 13px; border-radius: 10px; border: 1px solid var(--border);
+    font-size: 14px; outline: none; background: #fbfbfe;
+    transition: border-color .15s, background .15s;
+  }
+  .sync-input:focus { border-color: var(--accent); background: #fff; }
+  .sync-hint { font-size: 12px; color: #9aa1b2; line-height: 1.75; margin-top: 10px; }
+  .sync-hint b { color: #6b7280; font-weight: 600; }
+  .sync-hint code {
+    background: #f4f5fa; border-radius: 4px; padding: 1px 5px;
+    font-size: 11.5px; color: #5b6170;
+  }
+  .sync-foot { display: flex; gap: 10px; margin-top: 18px; }
+  .sync-foot button { flex: 1; padding: 11px 0; border-radius: 10px; font-size: 14px; }
+  .sync-cancel { background: #f4f5fa; color: #6b7280; }
+  .sync-cancel:hover { background: #eceef5; }
+  .sync-ok {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff; font-weight: 600;
+  }
+  .sync-ok:hover { filter: brightness(1.08); }
+  .sync-ok:disabled { opacity: .65; cursor: not-allowed; filter: none; }
 
   .empty-tip, .loading-tip {
     position: absolute; inset: 0; display: grid; place-items: center;
@@ -329,6 +421,10 @@
       <span class="sb-name">最近播放</span>
       <span class="sb-count" id="recentCount"></span>
     </div>
+    <div class="sb-title">在线歌单
+      <button class="sb-new" id="syncBtn" title="同步网易云 / QQ音乐歌单">＋</button>
+    </div>
+    <div id="remoteNavBox"><div class="sb-empty">同步网易云 / QQ音乐歌单<br>点击"＋"开始</div></div>
     <div class="sb-title">我的歌单
       <button class="sb-new" id="newPlBtn" title="新建歌单">＋</button>
     </div>
@@ -339,6 +435,9 @@
     <div class="panel-head">
       <span id="listTitle">搜索结果</span>
       <span style="display:flex;align-items:center;gap:10px">
+        <button class="import-btn" id="importBtn" style="display:none" title="把当前在线歌单整体导入为我的歌单">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4l-4.7-5.7 1.4-1.4L12 13.6V3zM5 19h14v2H5z"/></svg>导入
+        </button>
         <button class="playall-btn" id="playAllBtn" style="display:none" title="播放全部">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>播放全部
         </button>
@@ -410,6 +509,22 @@
 
 <div id="pickMask"></div>
 <div id="pickPop"></div>
+
+<div id="syncMask"></div>
+<div id="syncPop">
+  <div class="sync-head">同步在线歌单</div>
+  <div class="sync-sub">填入账号信息，即可把该账号在对应平台的歌单列表同步到侧边栏。</div>
+  <div class="sync-tabs">
+    <button class="sync-tab active" data-pf="netease">网易云音乐</button>
+    <button class="sync-tab" data-pf="tencent">QQ 音乐</button>
+  </div>
+  <input class="sync-input" id="syncInput" type="text" autocomplete="off" spellcheck="false">
+  <div class="sync-hint" id="syncHint"></div>
+  <div class="sync-foot">
+    <button class="sync-cancel" id="syncCancel">取消</button>
+    <button class="sync-ok" id="syncOk">同步</button>
+  </div>
+</div>
 
 <div id="toast"></div>
 
@@ -541,6 +656,80 @@ async function apiRequest(params) {
   return jsonpWithFallback(params);
 }
 
+/* ---------- 在线歌单接口 ----------
+ * 站点除 search / url / pic / lyric 外，另暴露两个接口用于同步"用户歌单"：
+ *
+ *   1) types=userlist & source=<netease|tencent> & uid=<网易云UID | QQ号>
+ *      → { playlist: [ { id, name, trackCount|count, coverImgUrl, creator{nickname,avatarUrl} } ], more, code }
+ *      · source 必带：source 缺省或写成别的值时，上游返回 HTML 信息页（非 JSON）；
+ *      · uid 为空 / 含非数字字符 → { code:400, message:"请求参数错误" }；
+ *      · 网易云 UID 不存在 → playlist 为空数组且 code=200（属正常"查无此人"，非报错）。
+ *
+ *   2) types=playlist & id=<歌单id> & source=<源>
+ *      → 与 search 同构的歌曲数组（id/name/artist/album/pic_id/url_id/lyric_id/source/sign），
+ *        可直接推入播放队列复用现有播放链路；sign 过期同样由 refreshSign 自愈。
+ *      · source 必带：QQ 歌单不带 source 会得到空数组；
+ *      · 上游单次最多返回 1000 首（limit 参数无效），超大歌单会截断。
+ *
+ * 实测（2026-09-18）：
+ *   netease uid=123456 → 1 个歌单；tencent uid=123456 → "默认收藏" 23 首（实拉 22 首）
+ */
+const REMOTE_PLATFORMS = {
+  netease: {
+    label: "网易云",
+    placeholder: "例如 123456",
+    hint: '网页版网易云音乐 → 我的主页，地址栏中 <code>id=</code> 后面的数字就是 UID。',
+    pattern: /^\d{1,20}$/,
+    errText: "网易云 UID 应为纯数字",
+    emptyText: "未找到该 UID 的公开歌单（可能不存在，或被设为隐私）",
+  },
+  tencent: {
+    label: "QQ音乐",
+    placeholder: "例如 10001",
+    hint: "填入 QQ 号即可——QQ 音乐的「我喜欢」和自建歌单都挂在 QQ 账号下。",
+    pattern: /^\d{1,20}$/,
+    errText: "QQ 号应为纯数字",
+    emptyText: "未找到该 QQ 号的公开歌单",
+  },
+};
+
+/* 两平台字段名不同（netease.trackCount / tencent.count），统一成内部结构 */
+function normalizeRemotePlaylist(p) {
+  const creator = p.creator || {};
+  let count = 0;
+  if (typeof p.trackCount === "number") count = p.trackCount;
+  else if (typeof p.count === "number") count = p.count;
+  return {
+    id: String(p.id),
+    name: p.name || "未命名歌单",
+    cover: p.coverImgUrl || "",
+    count: count,
+    playCount: typeof p.playCount === "number" ? p.playCount : 0,
+    creator: creator.nickname || "",
+    avatar: creator.avatarUrl || "",
+  };
+}
+
+async function fetchUserPlaylists(platform, uid) {
+  const data = await apiRequest({ types: "userlist", source: platform, uid: uid });
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    throw new Error("返回数据格式异常");
+  }
+  if (data.code && Number(data.code) !== 200) {
+    throw new Error(data.message || data.msg || "请求参数错误");
+  }
+  const raw = Array.isArray(data.playlist) ? data.playlist : [];
+  const playlists = raw.map(normalizeRemotePlaylist)
+    .filter((p) => p.id && p.id !== "undefined" && p.id !== "null");
+  return { more: !!data.more, playlists: playlists };
+}
+
+async function fetchRemotePlaylistSongs(platform, id) {
+  const list = await apiRequest({ types: "playlist", id: id, source: platform });
+  if (!Array.isArray(list)) throw new Error("返回数据格式异常");
+  return list;
+}
+
 /* sign 机制：sign 随搜索结果下发且有时效，请求 url/pic/lyric 必须携带；
  * 失效时上游在字段里回"签名错误！"→ 自动重新搜索换取新 sign 并重试一次 */
 function isSignError(x) { return typeof x === "string" && x.indexOf("签名错误") !== -1; }
@@ -569,10 +758,13 @@ const state = {
   lyric: { lines: [], idx: -1, offset: 0 },
   consecutiveErr: 0,
   seek: { active: false, ratio: 0 },   // 进度条拖动状态（预览中不触碰音频）
-  view: { type: "search" },   // search | recent | playlist(id)
+  view: { type: "search" },   // search | recent | playlist(id) | remote(sid,rid)
   recent: [],           // 最近播放
   playlists: [],        // 本地歌单
   downloading: new Set(), // 下载中的 songKey
+  remoteSources: [],    // 在线同步账号（持久化）：{id,platform,uid,nickname,avatar,playlists[],expanded,fetchedAt}
+  remoteSongs: new Map(), // 会话内在线歌单歌曲缓存 sid:playlistId -> songs（不持久化，避免撑爆 localStorage）
+  searchCache: null,    // 离开搜索视图时的结果快照（内存）
 };
 
 const audio = new Audio();
@@ -623,10 +815,49 @@ function pushRecent(song) {
 function getPl(id) {
   return state.playlists.find((p) => p.id === id);
 }
+
+/* ---------- 在线歌单：账号持久化 ----------
+ * 只持久化"账号 + 歌单目录"（体积小、变化慢），歌曲列表按需实时拉取并做会话内缓存：
+ * 网易云大型歌单动辄上千首，全量塞进 localStorage 很快会触顶，且手机端配额更小。 */
+function loadRemoteSources() {
+  try {
+    const arr = JSON.parse(localStorage.getItem("ym_remote_sources") || "[]");
+    state.remoteSources = Array.isArray(arr) ? arr : [];
+  } catch (e) { state.remoteSources = []; }
+  state.remoteSources.forEach((s) => { if (!Array.isArray(s.playlists)) s.playlists = []; });
+}
+function saveRemoteSources() {
+  try {
+    localStorage.setItem("ym_remote_sources", JSON.stringify(state.remoteSources));
+  } catch (e) {
+    toast("在线歌单信息保存失败（本地存储空间不足）");
+  }
+}
+function getRemoteSource(sid) {
+  return state.remoteSources.find((s) => s.id === sid);
+}
+function remotePlaylistOf(view) {
+  const src = getRemoteSource(view.sid);
+  if (!src) return null;
+  return src.playlists.find((p) => String(p.id) === String(view.rid)) || null;
+}
+/* 清空某个账号的歌单歌曲缓存（刷新/取消同步时调用，避免展示过期数据） */
+function clearRemoteCache(sid) {
+  const prefix = sid + ":";
+  Array.from(state.remoteSongs.keys()).forEach((k) => {
+    if (k.indexOf(prefix) === 0) state.remoteSongs.delete(k);
+  });
+}
 function viewTitle() {
   const v = state.view;
   if (v.type === "search") return state.keyword ? "搜索：“" + state.keyword + "”" : "搜索结果";
   if (v.type === "recent") return "最近播放";
+  if (v.type === "remote") {
+    const pl = remotePlaylistOf(v);
+    const src = getRemoteSource(v.sid);
+    const pf = src && REMOTE_PLATFORMS[src.platform];
+    return (pl ? pl.name : "在线歌单") + (pf ? " · " + pf.label : "");
+  }
   const pl = getPl(v.id);
   return pl ? "歌单：" + pl.name : "歌单";
 }
@@ -673,6 +904,7 @@ function showListLoading() {
 function renderSidebar() {
   // 最近播放计数
   $("recentCount").textContent = state.recent.length ? state.recent.length : "";
+  renderRemoteSources();
   // 歌单导航
   const box = $("plNavBox");
   const v = state.view;
@@ -696,6 +928,74 @@ function renderSidebar() {
       switchView({ type: "playlist", id: pid });
       closeSidebarIfMobile();
     });
+  });
+}
+
+/* ---------- 渲染在线歌单（侧边栏：账号 → 歌单 两级） ---------- */
+function avatarHtml(src, name) {
+  const ch = esc(String(name || "?").trim().slice(0, 1) || "?");
+  // 图片加载失败时自动移除，露出底下的首字母兜底
+  const img = src
+    ? '<img src="' + esc(src) + '" alt="" referrerpolicy="no-referrer" ' +
+      'style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover" ' +
+      'onerror="this.remove()">'
+    : "";
+  return '<span class="avatar" style="position:relative">' + ch + img + "</span>";
+}
+
+function renderRemoteSources() {
+  const box = $("remoteNavBox");
+  if (!box) return;
+  const v = state.view;
+  if (!state.remoteSources.length) {
+    box.innerHTML = '<div class="sb-empty">同步网易云 / QQ音乐歌单<br>点击"＋"开始</div>';
+    return;
+  }
+  box.innerHTML = state.remoteSources.map((s) => {
+    const pf = REMOTE_PLATFORMS[s.platform] || { label: s.platform };
+    const open = s.expanded !== false;
+    let sub = "";
+    if (open) {
+      sub = s.playlists.length
+        ? '<div class="sb-sub">' + s.playlists.map((p) => {
+            const active = (v.type === "remote" && v.sid === s.id && String(v.rid) === String(p.id)) ? " active" : "";
+            return '<div class="sb-item' + active + '" data-sid="' + esc(s.id) + '" data-rid="' + esc(p.id) + '" title="' + esc(p.name) + '">' +
+              '<span class="sb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4l-4.7-5.7 1.4-1.4L12 13.6V3zM5 19h14v2H5z"/></svg></span>' +
+              '<span class="sb-name">' + esc(p.name) + '</span>' +
+              '<span class="sb-count">' + (p.count ? p.count : "") + "</span>" +
+            "</div>";
+          }).join("") + "</div>"
+        : '<div class="sb-empty" style="padding-left:24px">该账号没有公开歌单</div>';
+    }
+    return '<div class="sb-acct' + (open ? " open" : "") + '" data-sid="' + esc(s.id) + '">' +
+      '<span class="caret">▶</span>' +
+      avatarHtml(s.avatar, s.nickname || s.uid) +
+      '<span class="nick" title="' + esc(s.nickname || s.uid) + '">' + esc(s.nickname || s.uid) + "</span>" +
+      '<span class="pf ' + esc(s.platform) + '">' + esc(pf.label) + "</span>" +
+      '<button class="acct-act" data-act="refresh" title="重新同步歌单列表">⟳</button>' +
+      '<button class="acct-act" data-act="del" title="取消同步">×</button>' +
+      "</div>" + sub;
+  }).join("");
+
+  box.querySelectorAll(".sb-acct").forEach((el) => {
+    const sid = el.dataset.sid;
+    el.addEventListener("click", (e) => {
+      const btn = e.target.closest(".acct-act");
+      if (btn) {
+        e.stopPropagation();
+        if (btn.dataset.act === "refresh") refreshRemoteAccount(sid);
+        else if (btn.dataset.act === "del") removeRemoteAccount(sid);
+        return;
+      }
+      const s = getRemoteSource(sid);
+      if (!s) return;
+      s.expanded = (s.expanded === false);   // 折叠态为 false，切换回展开
+      saveRemoteSources();
+      renderRemoteSources();
+    });
+  });
+  box.querySelectorAll(".sb-sub .sb-item").forEach((el) => {
+    el.addEventListener("click", () => openRemotePlaylist(el.dataset.sid, el.dataset.rid));
   });
 }
 
@@ -757,10 +1057,12 @@ function renderList() {
   $("listCount").textContent = "共 " + state.results.length + " 首";
   $("listTitle").textContent = viewTitle();
   $("playAllBtn").style.display = state.results.length ? "inline-flex" : "none";
+  $("importBtn").style.display = (v.type === "remote" && state.results.length) ? "inline-flex" : "none";
 
   if (!state.results.length) {
     const tipText = v.type === "search" ? "没有找到相关歌曲，换个关键词试试"
       : v.type === "recent" ? "还没有播放记录<br>去搜索听几首吧"
+      : v.type === "remote" ? "这个歌单没有可播放的歌曲<br>（可能已下架或受限）"
       : "歌单还是空的<br>去搜索页点歌曲行上的 ☆ 收藏进来";
     box.innerHTML = '<div class="empty-tip" style="position:static;display:grid"><div><div class="big">&#9723;</div>' + tipText + "</div></div>";
   } else if (v.type === "search" && state.lastCount >= PAGE_SIZE) {
@@ -777,16 +1079,38 @@ function currentViewSongs() {
   const v = state.view;
   if (v.type === "search") return state.results;
   if (v.type === "recent") return state.recent;
+  if (v.type === "remote") return state.results;   // 在线歌单歌曲在打开时已装载进 results
   const pl = getPl(v.id);
   return pl ? pl.songs : [];
 }
 
+/* 离开搜索视图前留存结果：state.results 是"当前视图的播放队列"，切到别的视图会被覆写，
+ * 不留档的话切回来就只剩别的视图的歌了（顺带修掉了原先切走再切回会串数据的旧问题）。 */
+function rememberSearchSnapshot() {
+  if (state.view.type === "search") {
+    state.searchCache = {
+      keyword: state.keyword,
+      page: state.page,
+      results: state.results,
+      lastCount: state.lastCount,
+    };
+  }
+}
+
 function switchView(view) {
+  rememberSearchSnapshot();
   state.view = view;
   state.page = 1;
   state.cur = -1;   // 视图切换不自动播放，索引重置
   if (view.type === "search") {
-    // 保留已有搜索结果
+    if (state.searchCache) {
+      state.keyword = state.searchCache.keyword;
+      state.page = state.searchCache.page;
+      state.results = state.searchCache.results;
+      state.lastCount = state.searchCache.lastCount;
+    } else {
+      state.results = [];
+    }
   } else {
     state.results = currentViewSongs();
   }
@@ -1027,6 +1351,197 @@ async function downloadSong(song, btn) {
     state.downloading.delete(key);
     if (btn) btn.classList.remove("dl-ing");
   }
+}
+
+/* ---------- 在线歌单：同步 / 打开 / 导入 ---------- */
+let syncPlatform = "netease";   // 弹窗当前选中的平台
+let syncing = false;            // 同步请求进行中（防重复提交）
+
+/* 把一次接口结果落到 state.remoteSources（新增或覆盖），并刷新侧边栏 */
+function applySyncResult(platform, uid, playlists) {
+  const sid = platform + "_" + uid;
+  const src = getRemoteSource(sid);
+  const first = playlists[0] || {};
+  const meta = {
+    id: sid,
+    platform: platform,
+    uid: uid,
+    nickname: first.creator || uid,   // 同一账号下各歌单的 creator 相同，取首个即可
+    avatar: first.avatar || "",
+    playlists: playlists,
+    expanded: src ? src.expanded !== false : true,
+    fetchedAt: Date.now(),
+  };
+  if (src) Object.assign(src, meta);
+  else state.remoteSources.push(meta);
+  saveRemoteSources();
+  renderSidebar();
+  return sid;
+}
+
+/* ---- 同步弹窗 ---- */
+function renderSyncDialog() {
+  const pf = REMOTE_PLATFORMS[syncPlatform];
+  document.querySelectorAll(".sync-tab").forEach((b) => {
+    b.classList.toggle("active", b.dataset.pf === syncPlatform);
+  });
+  $("syncInput").placeholder = pf.placeholder;
+  $("syncHint").innerHTML = pf.hint;
+}
+
+function openSyncDialog() {
+  syncPlatform = "netease";
+  $("syncInput").value = "";
+  renderSyncDialog();
+  $("syncMask").classList.add("show");
+  $("syncPop").classList.add("show");
+  setTimeout(() => { try { $("syncInput").focus(); } catch (e) {} }, 60);
+}
+
+function closeSyncDialog() {
+  $("syncMask").classList.remove("show");
+  $("syncPop").classList.remove("show");
+}
+
+async function submitSync() {
+  if (syncing) return;
+  const pf = REMOTE_PLATFORMS[syncPlatform];
+  const uid = $("syncInput").value.trim();
+  if (!uid) { toast("请输入" + pf.placeholder.replace("例如 ", "")); return; }
+  if (!pf.pattern.test(uid)) { toast(pf.errText); return; }
+
+  syncing = true;
+  const okBtn = $("syncOk");
+  okBtn.disabled = true;
+  okBtn.textContent = "同步中…";
+  try {
+    const res = await fetchUserPlaylists(syncPlatform, uid);
+    if (!res.playlists.length) { toast(pf.emptyText); return; }   // 不关窗，方便直接改
+    const sid = syncPlatform + "_" + uid;
+    const existed = !!getRemoteSource(sid);
+    applySyncResult(syncPlatform, uid, res.playlists);
+    const src = getRemoteSource(sid);
+    closeSyncDialog();
+    toast((existed ? "已更新「" : "已同步「") + (src.nickname || uid) + "」的 " + res.playlists.length + " 个歌单");
+  } catch (err) {
+    toast("同步失败：" + err.message);
+  } finally {
+    syncing = false;
+    okBtn.disabled = false;
+    okBtn.textContent = "同步";
+  }
+}
+
+/* ---- 打开在线歌单：歌曲按需拉取 + 会话内缓存 ---- */
+async function openRemotePlaylist(sid, rid) {
+  const src = getRemoteSource(sid);
+  if (!src) return;
+  rid = String(rid);
+  const pl = src.playlists.find((p) => String(p.id) === rid);
+  rememberSearchSnapshot();
+  state.view = { type: "remote", sid: sid, rid: rid };
+  state.cur = -1;
+  state.page = 1;
+  renderRemoteSources();
+  closeSidebarIfMobile();
+
+  const key = sid + ":" + rid;
+  if (state.remoteSongs.has(key)) {     // 本次会话已拉过 → 不再打网络
+    state.results = state.remoteSongs.get(key);
+    renderList();
+    return;
+  }
+
+  // 拉取中：用 loading 占住列表面板（renderList 会清掉 loadingTip，所以这一段不走它）
+  state.results = [];
+  $("emptyTip").style.display = "none";
+  $("songList").innerHTML = "";
+  const oldTip = $("loadingTip"); if (oldTip) oldTip.remove();
+  $("listBody").insertAdjacentHTML("beforeend",
+    '<div class="loading-tip" id="loadingTip"><div><div class="spinner"></div>正在拉取歌单…</div></div>');
+  $("listTitle").textContent = viewTitle();
+  $("listCount").textContent = "";
+  $("playAllBtn").style.display = "none";
+  $("importBtn").style.display = "none";
+
+  try {
+    const songs = await fetchRemotePlaylistSongs(src.platform, rid);
+    // 期间用户可能已切到别的视图：丢弃这次结果
+    if (state.view.type !== "remote" || state.view.sid !== sid || state.view.rid !== rid) return;
+    state.remoteSongs.set(key, songs);
+    // 用实拉数量回填：QQ 端给出的 count 常不准（实测 23 → 实拉 22）
+    if (pl && songs.length && pl.count !== songs.length) {
+      pl.count = songs.length;
+      saveRemoteSources();
+      renderRemoteSources();
+    }
+    state.results = songs;
+    renderList();
+    if (songs.length) {
+      toast(songs.length >= 1000
+        ? "已载入 1000 首（上游单次上限，更长的歌单仅取前 1000 首）"
+        : "已载入 " + songs.length + " 首");
+    }
+  } catch (err) {
+    if (state.view.type === "remote" && state.view.sid === sid) {
+      state.results = [];
+      renderList();
+      toast("歌单加载失败：" + err.message);
+    }
+  }
+}
+
+/* ---- 账号操作：重新同步 / 取消同步 ---- */
+async function refreshRemoteAccount(sid) {
+  const src = getRemoteSource(sid);
+  if (!src || syncing) return;
+  syncing = true;
+  const who = src.nickname || src.uid;
+  toast("正在重新同步「" + who + "」…");
+  try {
+    const res = await fetchUserPlaylists(src.platform, src.uid);
+    if (!res.playlists.length) { toast("未取到歌单，已保留原有数据"); return; }
+    clearRemoteCache(sid);
+    applySyncResult(src.platform, src.uid, res.playlists);
+    if (state.view.type === "remote" && state.view.sid === sid) {
+      openRemotePlaylist(sid, state.view.rid);   // 正看着该账号的歌单 → 重新拉一遍
+    }
+    const fresh = getRemoteSource(sid);
+    toast("已更新「" + (fresh.nickname || src.uid) + "」的 " + res.playlists.length + " 个歌单");
+  } catch (err) {
+    toast("同步失败：" + err.message);
+  } finally {
+    syncing = false;
+  }
+}
+
+function removeRemoteAccount(sid) {
+  const src = getRemoteSource(sid);
+  if (!src) return;
+  const who = src.nickname || src.uid;
+  if (!window.confirm("取消同步「" + who + "」？\n\n只移除侧边栏里的在线歌单，本地歌单与已收藏的歌曲不受影响。")) return;
+  state.remoteSources = state.remoteSources.filter((s) => s.id !== sid);
+  saveRemoteSources();
+  clearRemoteCache(sid);
+  if (state.view.type === "remote" && state.view.sid === sid) switchView({ type: "search" });
+  else renderSidebar();
+  toast("已取消同步「" + who + "」");
+}
+
+/* ---- 整个在线歌单导入为我的歌单 ---- */
+function importCurrentRemote() {
+  const v = state.view;
+  if (v.type !== "remote" || !state.results.length) return;
+  const pl = remotePlaylistOf(v);
+  const base = (pl ? pl.name : "在线歌单").trim() || "在线歌单";
+  let name = base, n = 1;
+  while (state.playlists.some((p) => p.name === name)) { name = base + " (" + (++n) + ")"; }
+  if (!window.confirm("把「" + base + "」的 " + state.results.length + " 首歌曲导入为我的歌单「" + name + "」？\n\n导入后即为本地歌单，可长期保留、随时播放。")) return;
+  const local = createPlaylist(name);
+  local.songs = state.results.map(songRefOf);
+  savePlaylists();
+  toast("已导入 " + local.songs.length + " 首到「" + name + "」");
+  switchView({ type: "playlist", id: local.id });
 }
 
 /* ---------- 歌单管理 ---------- */
@@ -1296,6 +1811,17 @@ $("lyricToggle").addEventListener("click", () => {
   $("lyricToggle").classList.toggle("on", p.classList.contains("show"));
 });
 
+/* 在线歌单：同步入口 / 弹窗交互 / 整单导入 */
+$("syncBtn").addEventListener("click", (e) => { e.stopPropagation(); openSyncDialog(); });
+$("syncMask").addEventListener("click", closeSyncDialog);
+$("syncCancel").addEventListener("click", closeSyncDialog);
+$("syncOk").addEventListener("click", submitSync);
+$("syncInput").addEventListener("keydown", (e) => { if (e.key === "Enter") submitSync(); });
+$("importBtn").addEventListener("click", importCurrentRemote);
+document.querySelectorAll(".sync-tab").forEach((b) => {
+  b.addEventListener("click", () => { syncPlatform = b.dataset.pf; renderSyncDialog(); });
+});
+
 /* 歌单 / 视图 / 下载 */
 $("navRecent").addEventListener("click", () => { switchView({ type: "recent" }); closeSidebarIfMobile(); });
 $("newPlBtn").addEventListener("click", (e) => { e.stopPropagation(); promptNewPlaylist(); });
@@ -1308,6 +1834,7 @@ $("dlBtn").addEventListener("click", () => {
 });
 
 document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closeSyncDialog(); closePick(); return; }
   if (e.target.tagName === "INPUT") return;
   if (e.code === "Space") { e.preventDefault(); $("playBtn").click(); }
 });
@@ -1343,6 +1870,7 @@ if ("mediaSession" in navigator) {
 /* ---------- 初始化 ---------- */
 loadPlaylists();
 loadRecent();
+loadRemoteSources();
 renderSidebar();
 renderList();
 </script>
