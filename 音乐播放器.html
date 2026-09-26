@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>音乐播放器</title>
 <style>
   :root {
@@ -19,6 +19,10 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
+  /* 移动端浏览器地址栏收起/展开会让 100% 抖动，dvh 跟随可视视口，界面不会被裁掉一条 */
+  @supports (height: 100dvh) {
+    html, body { height: 100dvh; }
+  }
   body {
     font-family: "MiSans", "Segoe UI", "Microsoft YaHei", -apple-system, sans-serif;
     background: var(--bg);
@@ -26,6 +30,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    -webkit-text-size-adjust: 100%;   /* 横屏时不擅自放大字号 */
   }
   button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
   input { font-family: inherit; }
@@ -382,7 +387,9 @@
   }
   .progress-track:hover .progress-thumb { opacity: 1; }
 
-  .right-zone { width: 150px; flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  /* 宽度交给内容决定：固定 150px 装不下「下载 + 歌词 + 音量」，
+   * 会让歌词按钮被挤成竖排文字、下载按钮被压扁（原有瑕疵） */
+  .right-zone { flex: none; display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
   .vol-icon { color: #5b6170; flex: none; }
   .vol-slider { width: 90px; accent-color: var(--accent); height: 4px; cursor: pointer; }
   .lyric-toggle { font-size: 12px; padding: 7px 12px; border-radius: 17px; border: 1px solid var(--border); color: var(--text-2); }
@@ -397,33 +404,184 @@
   }
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-  /* ---------- 移动端 ---------- */
+  /* ============================================================
+   * 移动端适配
+   * 设计原则：
+   *   1. 任何 ≥320px 的竖屏都不产生横向溢出（页面不做 viewport 缩放宽）
+   *   2. 顶栏 / 播放条改为双行，把「宽元素」拆到独占行，不再互相挤压
+   *   3. 触屏没有 hover → 操作按钮改为常显，不再依赖悬停
+   *   4. 固定层（侧栏 / 歌词 / 提示）用实测栏高变量定位，不写死像素
+   *   5. 刘海屏与 Home Indicator 由 env(safe-area-inset-*) 让位
+   * ============================================================ */
   @media (max-width: 880px) {
-    main { padding: 10px; gap: 10px; }
-    header { padding: 10px 14px; gap: 10px; }
-    .header-pad { display: none; }
-    .menu-btn { display: grid; }
-    .sb-close { display: grid; }
+    main { padding: 8px; gap: 8px; }
+    .header-pad { display: none; }   /* 桌面用于左右平衡的占位块，窄屏必须撤掉 */
+
+    /* 侧边栏：全屏抽屉（不再依赖硬编码的顶/底偏移） */
     .sidebar {
-      position: fixed; top: 62px; bottom: 86px; left: 10px; width: 210px; z-index: 20;
-      transform: translateX(-120%); transition: transform .25s; box-shadow: 0 10px 40px rgba(31,36,48,.25);
+      position: fixed; inset: 0; width: 100%; z-index: 60;
+      border-radius: 0; box-shadow: none;
+      padding: 16px 12px;
+      padding-top: max(16px, env(safe-area-inset-top, 0px));
+      padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+      transform: translateX(-100%); transition: transform .25s;
+      overscroll-behavior: contain;
     }
     .sidebar.open { transform: translateX(0); }
-    .lyric-panel.show { position: fixed; inset: 62px 10px 86px; z-index: 10; }
-    .np-info { width: 120px; }
-    .right-zone { width: auto; }
-    .vol-slider { display: none; }
-    .time { width: 34px; }
-    footer { padding: 8px 12px; gap: 10px; }
-    .cover-wrap { width: 46px; height: 46px; }
+    .sb-close {
+      display: grid; top: 10px; right: 10px;
+      top: calc(max(10px, env(safe-area-inset-top, 0px)) + 2px);
+      width: 40px; height: 40px; font-size: 22px;
+    }
+    .sb-title { padding-right: 46px; }
+
+    /* 歌词面板：贴合「顶栏下沿 ~ 播放条上沿」，高度由实测变量给出 */
+    .lyric-panel.show {
+      position: fixed; z-index: 40;
+      left: 8px; right: 8px;
+      top: var(--hdr-h, 62px); bottom: var(--ftr-h, 88px);
+    }
+    .lyric-body { padding: 16px; }
+
+    .np-info { width: auto; }
+    .right-zone { width: auto; gap: 4px; }
+    .vol-slider, .vol-icon { display: none; }   /* 移动端音量交给系统硬件键 */
+    .time { width: 34px; font-size: 10.5px; }
+
+    /* 搜索框字号 ≥16px：低于该值 iOS 会在聚焦时自动放大整页 */
+    .search-box input { font-size: 16px; }
+    .menu-btn { display: grid; width: 40px; height: 40px; }
+    .fs-ctrl { height: 34px; padding: 0 6px; gap: 2px; border-radius: 17px; }
+    .fs-btn { min-width: 28px; height: 26px; padding: 0 7px; font-size: 12px; }
+    .fs-val { min-width: 34px; font-size: 12px; }
+
+    /* 面板头：标题可省略，按钮收窄 */
+    .panel-head { padding: 10px 12px; gap: 6px; }
+    #listTitle { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .playall-btn, .import-btn { padding: 6px 10px; font-size: 12px; }
+
+    /* 收藏浮层：移动端改为贴底弹层（浮动定位在窄屏容易顶到边缘） */
+    #pickPop {
+      left: 10px !important; right: 10px !important; top: auto !important;
+      bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      width: auto; max-height: 55vh; border-radius: 16px;
+      box-shadow: 0 -10px 36px rgba(31,36,48,.20);
+    }
+    #pickMask.show { background: rgba(31,36,48,.28); }
+    .pick-item, .pick-new { padding: 12px 10px; }
+
+    /* 同步弹窗：宽度单一来源 + 内容超高时内部滚动（软键盘弹出也不越界） */
+    #syncPop {
+      width: calc(100vw - 24px);
+      max-height: calc(100dvh - 32px);
+      overflow-y: auto; padding: 18px;
+    }
+    .sync-tab { padding: 11px 0; }
+
+    #toast { top: calc(var(--hdr-h, 62px) + 10px); max-width: calc(100vw - 28px); }
+    .empty-tip .big { font-size: 36px; }
   }
 
-  /* 移动端竖屏：侧边栏展开时全屏显示 */
-  @media (orientation: portrait) and (max-width: 880px) {
-    .sidebar {
-      top: 0; bottom: 0; left: 0; width: 100%;
-      transform: translateX(-100%); box-shadow: 0 10px 40px rgba(31,36,48,.25);
+  /* 极窄屏：面板头里按钮的优先级高于「共 N 首」计数（纯展示信息，不影响任何操作） */
+  @media (max-width: 480px) {
+    #listCount { display: none; }
+  }
+
+  /* 触屏设备：没有 hover → 操作按钮常显；同时把可点目标放大 */
+  @media (hover: none), (pointer: coarse) {
+    .row-acts { display: flex; }
+    .song-row .badge { display: none; }        /* 让位给歌名与操作按钮 */
+    .sb-item .sb-more { display: grid; }
+    .sb-acct .acct-act { display: grid; }
+    .row-acts button { width: 38px; height: 38px; }
+    .sb-item { padding: 11px 10px; }
+    .sb-sub .sb-item { padding: 10px 8px 10px 14px; }
+    .sb-new, .sb-more, .acct-act { width: 30px; height: 30px; }
+    .song-row, button, .sb-item, .pick-item, .lyric-line { touch-action: manipulation; }
+    button, .song-row, .sb-item { -webkit-tap-highlight-color: transparent; }
+    .lyric-line { padding: 10px 6px; }
+  }
+
+  /* ---------- 竖屏手机：顶栏与播放条改双行布局 ---------- */
+  @media (max-width: 880px) and (orientation: portrait) {
+    header {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas: "menu logo fs" "search search search";
+      align-items: center;
+      column-gap: 8px; row-gap: 8px;
+      padding: 8px 12px;
+      padding-top: max(8px, env(safe-area-inset-top, 0px));
+      padding-left: max(12px, env(safe-area-inset-left, 0px));
+      padding-right: max(12px, env(safe-area-inset-right, 0px));
     }
+    .menu-btn { grid-area: menu; }
+    .logo { grid-area: logo; min-width: 0; }
+    .logo-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fs-ctrl { grid-area: fs; }
+    .search-box { grid-area: search; width: 100%; max-width: none; margin: 0; }
+    .search-box input { height: 38px; padding: 0 14px; border-radius: 19px 0 0 19px; }
+    .search-box button { height: 38px; padding: 0 16px; border-radius: 0 19px 19px 0; }
+
+    /* 播放条：三行网格——进度条 / 歌曲信息 / 控件。
+     * 用网格显式定位而非 flex-wrap：flex-wrap 会优先换行而不是收缩，
+     * 导致窄屏下歌曲信息把控件挤到第三行、宽屏下又挤成一团，行数不可预测。
+     * 网格下每一格的归属是确定的，任何宽度都只是各行变窄，绝不重叠或越界。 */
+    footer {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto auto;
+      grid-template-areas:
+        "prog prog prog prog"
+        "cov  info info info"
+        "ctrl ctrl dl   lyr";
+      align-items: center;
+      column-gap: 6px; row-gap: 6px;
+      padding: 6px 10px;
+      padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+      padding-left: max(10px, env(safe-area-inset-left, 0px));
+      padding-right: max(10px, env(safe-area-inset-right, 0px));
+    }
+    /* center-zone / right-zone 只作逻辑容器：让里面的区块直接落进 footer 网格 */
+    .center-zone, .right-zone { display: contents; }
+    .progress-row { grid-area: prog; width: 100%; max-width: none; gap: 6px; }
+    .progress-track { min-width: 60px; }
+    .cover-wrap { grid-area: cov; width: 42px; height: 42px; border-radius: 10px; }
+    .np-info { grid-area: info; width: auto; min-width: 0; }
+    .np-name { font-size: 13.5px; }
+    .np-artist { font-size: 11px; margin-top: 2px; }
+    .ctrl-row { grid-area: ctrl; justify-content: center; gap: 4px; }
+    #dlBtn { grid-area: dl; }
+    #lyricToggle { grid-area: lyr; }
+    .ctrl-btn { width: 34px; height: 34px; }
+    .ctrl-btn.mode { width: 30px; font-size: 10px; }
+    .play-btn { width: 44px; height: 44px; box-shadow: 0 3px 10px rgba(79,70,229,.32); }
+    .lyric-toggle { padding: 6px 9px; font-size: 11.5px; }
+  }
+
+  /* 320~360px：顶栏第一行把宽裕度精确分给「品牌 + 字号控件」，避免品牌名被截断 */
+  @media (max-width: 360px) and (orientation: portrait) {
+    .logo { font-size: 15px; }
+    .fs-ctrl { padding: 0 4px; gap: 2px; }
+    .fs-btn { min-width: 26px; padding: 0 5px; }
+    .fs-val { min-width: 30px; }
+  }
+
+  /* ---------- 横屏手机：宽度够，回到单行并整体压缩高度 ---------- */
+  @media (max-width: 880px) and (orientation: landscape) {
+    header { padding: 6px 12px; gap: 8px; }
+    .logo-text { display: none; }
+    .search-box input { height: 36px; }
+    .search-box button { height: 36px; padding: 0 14px; }
+    .fs-ctrl { height: 32px; }
+    .fs-btn { height: 24px; }
+    main { padding: 6px; gap: 6px; }
+    footer { padding: 6px 12px; gap: 10px; }
+    .cover-wrap { width: 38px; height: 38px; }
+    .np-info { width: 110px; }
+    .ctrl-row { gap: 8px; }
+    .ctrl-btn { width: 32px; height: 32px; }
+    .play-btn { width: 42px; height: 42px; }
+    .panel-head { padding: 9px 12px; }
   }
 </style>
 </head>
@@ -437,7 +595,7 @@
     <span class="mark">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
     </span>
-    音乐播放器
+    <span class="logo-text">音乐播放器</span>
   </div>
   <div class="search-box">
     <input id="searchInput" type="text" placeholder="搜索歌曲 / 歌手 / 专辑…" autocomplete="off">
@@ -1931,6 +2089,29 @@ function setFsLevel(l) {
 $("fsMinus").addEventListener("click", () => setFsLevel(fsLevel - 1));
 $("fsPlus").addEventListener("click", () => setFsLevel(fsLevel + 1));
 applyFs();
+
+/* ---------- 移动端：实测顶栏 / 播放条高度 ----------
+ * 侧边栏、歌词面板、提示气泡都是固定定位，需要知道上下两条栏的真实高度。
+ * 移动端双行布局下栏高会随内容、字号、安全区变化，写死像素必然错位，
+ * 因此实测后写入 CSS 变量 --hdr-h / --ftr-h，由样式表引用。 */
+function syncBars() {
+  const h = document.querySelector("header");
+  const f = document.querySelector("footer");
+  if (!h || !f) return;
+  const root = document.documentElement.style;
+  root.setProperty("--hdr-h", Math.round(h.getBoundingClientRect().height) + "px");
+  root.setProperty("--ftr-h", Math.round(f.getBoundingClientRect().height) + "px");
+}
+if ("ResizeObserver" in window) {
+  const ro = new ResizeObserver(syncBars);
+  ro.observe(document.querySelector("header"));
+  ro.observe(document.querySelector("footer"));
+} else {
+  window.addEventListener("resize", syncBars);
+}
+window.addEventListener("orientationchange", () => setTimeout(syncBars, 150));
+window.addEventListener("load", syncBars);
+syncBars();
 
 /* ---------- 初始化 ---------- */
 loadPlaylists();
