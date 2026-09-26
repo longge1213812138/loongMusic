@@ -2,7 +2,10 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<!-- 锁定页面缩放：字号由应用内的 A- / A+ 控制（20 档），
+     页面本身不应该被浏览器缩放——否则调字号时连点按钮会被判定为双击，整页跟着缩放 -->
+
 <title>音乐播放器</title>
 <style>
   :root {
@@ -19,6 +22,12 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
+  html {
+    /* 必须挂在根元素上：移动浏览器（尤其 iOS）判定「是否自动放大文字」看的是根元素，
+       写在 body 上不生效——那会让调字号时整页文字被浏览器二次放大，看起来像 UI 被缩放了。 */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
   /* 移动端浏览器地址栏收起/展开会让 100% 抖动，dvh 跟随可视视口，界面不会被裁掉一条 */
   @supports (height: 100dvh) {
     html, body { height: 100dvh; }
@@ -30,7 +39,11 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    -webkit-text-size-adjust: 100%;   /* 横屏时不擅自放大字号 */
+  }
+  /* 连点同一个按钮时，移动浏览器会把它判定为「双击」并缩放页面。
+     这里统一声明由应用自己处理手势，浏览器不要再插手。 */
+  button, input, .song-row, .sb-item, .pick-item, .lyric-line, .pick-name, .sync-tab {
+    touch-action: manipulation;
   }
   button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
   input { font-family: inherit; }
@@ -497,7 +510,6 @@
     .sb-item { padding: 11px 10px; }
     .sb-sub .sb-item { padding: 10px 8px 10px 14px; }
     .sb-new, .sb-more, .acct-act { width: 30px; height: 30px; }
-    .song-row, button, .sb-item, .pick-item, .lyric-line { touch-action: manipulation; }
     button, .song-row, .sb-item { -webkit-tap-highlight-color: transparent; }
     .lyric-line { padding: 10px 6px; }
   }
@@ -523,17 +535,19 @@
     .search-box input { height: 38px; padding: 0 14px; border-radius: 19px 0 0 19px; }
     .search-box button { height: 38px; padding: 0 16px; border-radius: 0 19px 19px 0; }
 
-    /* 播放条：三行网格——进度条 / 歌曲信息 / 控件。
-     * 用网格显式定位而非 flex-wrap：flex-wrap 会优先换行而不是收缩，
-     * 导致窄屏下歌曲信息把控件挤到第三行、宽屏下又挤成一团，行数不可预测。
-     * 网格下每一格的归属是确定的，任何宽度都只是各行变窄，绝不重叠或越界。 */
+    /* 播放条：三行网格
+     *   行1  时间 · 进度条 · 时长 · 下载 · 歌词
+     *   行2  封面 · 歌曲信息
+     *   行3  播放控制（整行居中）
+     * 行3 让 ctrl-row 横跨整行，再把「播放模式」按钮绝对定位到行首，
+     * 于是剩下的上一曲 / 播放 / 下一曲在整行内真正居中——不受两侧元素宽度影响。 */
     footer {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr) auto auto;
+      grid-template-columns: auto minmax(0, 1fr) auto auto auto;
       grid-template-areas:
-        "prog prog prog prog"
-        "cov  info info info"
-        "ctrl ctrl dl   lyr";
+        "cur  prog  dur  dl   lyr"
+        "cov  info  info info info"
+        "ctrl ctrl  ctrl ctrl ctrl";
       align-items: center;
       column-gap: 6px; row-gap: 6px;
       padding: 6px 10px;
@@ -541,19 +555,23 @@
       padding-left: max(10px, env(safe-area-inset-left, 0px));
       padding-right: max(10px, env(safe-area-inset-right, 0px));
     }
-    /* center-zone / right-zone 只作逻辑容器：让里面的区块直接落进 footer 网格 */
-    .center-zone, .right-zone { display: contents; }
-    .progress-row { grid-area: prog; width: 100%; max-width: none; gap: 6px; }
-    .progress-track { min-width: 60px; }
+    /* 这几个只作逻辑容器：让内部区块直接落进 footer 网格 */
+    .center-zone, .right-zone, .progress-row { display: contents; }
+    #curTime { grid-area: cur; }
+    #progressTrack { grid-area: prog; width: 100%; min-width: 60px; }
+    #durTime { grid-area: dur; }
+    #dlBtn { grid-area: dl; }
+    #lyricToggle { grid-area: lyr; }
     .cover-wrap { grid-area: cov; width: 42px; height: 42px; border-radius: 10px; }
     .np-info { grid-area: info; width: auto; min-width: 0; }
     .np-name { font-size: 13.5px; }
     .np-artist { font-size: 11px; margin-top: 2px; }
-    .ctrl-row { grid-area: ctrl; justify-content: center; gap: 4px; }
-    #dlBtn { grid-area: dl; }
-    #lyricToggle { grid-area: lyr; }
+    .ctrl-row { grid-area: ctrl; position: relative; justify-content: center; gap: 4px; }
     .ctrl-btn { width: 34px; height: 34px; }
-    .ctrl-btn.mode { width: 30px; font-size: 10px; }
+    .ctrl-btn.mode {
+      position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+      width: 30px; font-size: 10px;
+    }
     .play-btn { width: 44px; height: 44px; box-shadow: 0 3px 10px rgba(79,70,229,.32); }
     .lyric-toggle { padding: 6px 9px; font-size: 11.5px; }
   }
@@ -2112,6 +2130,98 @@ if ("ResizeObserver" in window) {
 window.addEventListener("orientationchange", () => setTimeout(syncBars, 150));
 window.addEventListener("load", syncBars);
 syncBars();
+
+/* ---------- 移动端滑动手势 ----------
+ * 手机上没有键盘、关闭按钮也不顺手，抽屉与贴底弹层支持滑动关闭：
+ *   · 侧边栏抽屉 → 向右滑关闭
+ *   · 收藏浮层   → 向下滑关闭
+ * 三个要点：
+ *   1. 先做主轴判定：只有沿着关闭方向的拖动才算数，其它方向一律交还给页面滚动，
+ *      否则抽屉里的歌单列表会滑不动。
+ *   2. 跟手位移 + 松手按距离阈值决定去留，避免轻微误触就把面板关掉。
+ *   3. 松手后用带过渡的 transform 收尾，动画结束再交还控制权给样式表，全程不跳帧。
+ */
+function bindSwipeClose(el, opts) {
+  if (!el) return;
+  const axis = opts.axis === "y" ? "y" : "x";
+  const sign = opts.sign === -1 ? -1 : 1;          // 1 = 向右/向下，-1 = 向左/向上
+  const minDist = opts.threshold || 70;
+  let sx = 0, sy = 0, move = 0, locked = null, dragging = false, busy = false;
+
+  const settle = (far) => {
+    busy = true;
+    el.style.transition = "transform .22s cubic-bezier(.32,.72,.4,1)";
+    el.style.transform = axis === "x"
+      ? "translateX(" + (100 * sign) + "%)"
+      : "translateY(" + (100 * sign) + "%)";
+    if (!far) {
+      el.style.transform = axis === "x" ? "translateX(0)" : "translateY(0)";
+    }
+    setTimeout(() => {
+      // 先切状态（由类名决定最终位置），再交还 transform，避免收起时闪一下
+      if (far && opts.onClose) opts.onClose();
+      el.style.transition = "";
+      el.style.transform = "";
+      busy = false;
+    }, 230);
+  };
+
+  el.addEventListener("touchstart", (e) => {
+    if (busy || e.touches.length !== 1) return;
+    if (opts.active && !opts.active()) return;
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    move = 0; locked = null;
+  }, { passive: true });
+
+  el.addEventListener("touchmove", (e) => {
+    if (busy || e.touches.length !== 1) return;
+    const mx = e.touches[0].clientX - sx;
+    const my = e.touches[0].clientY - sy;
+    if (locked === null) {
+      if (Math.abs(mx) < 8 && Math.abs(my) < 8) return;      // 还没动，先不判定
+      const along = axis === "x" ? Math.abs(mx) : Math.abs(my);
+      const cross = axis === "x" ? Math.abs(my) : Math.abs(mx);
+      if (along <= cross) { locked = "other"; return; }      // 是另一个方向 → 让页面自己处理
+      locked = "self";
+      dragging = true;
+      el.style.transition = "none";
+    }
+    if (locked !== "self") return;
+    move = Math.max(0, (axis === "x" ? mx : my) * sign);     // 只认关闭方向
+    el.style.transform = axis === "x"
+      ? "translateX(" + (move * sign) + "px)"
+      : "translateY(" + (move * sign) + "px)";
+    if (e.cancelable) e.preventDefault();                    // 跟手期间不要同时滚动页面
+  }, { passive: false });
+
+  const finish = () => {
+    if (!dragging) { locked = null; return; }
+    const size = el.getBoundingClientRect()[axis === "x" ? "width" : "height"];
+    const far = move >= Math.min(minDist, size * 0.5);
+    dragging = false; locked = null;
+    settle(far);
+  };
+  el.addEventListener("touchend", finish);
+  el.addEventListener("touchcancel", finish);
+}
+
+/* 抽屉：打开状态下向右滑收起 */
+bindSwipeClose($("sidebar"), {
+  axis: "x", sign: 1, threshold: 70,
+  active: () => window.innerWidth <= 880 && $("sidebar").classList.contains("open"),
+  onClose: closeSidebarIfMobile,
+});
+
+/* 收藏浮层：内容滚到顶部时，向下滑收起 */
+bindSwipeClose($("pickPop"), {
+  axis: "y", sign: 1, threshold: 70,
+  active: () => {
+    const pop = $("pickPop");
+    return window.innerWidth <= 880 && pop.classList.contains("show") && pop.scrollTop <= 0;
+  },
+  onClose: closePick,
+});
 
 /* ---------- 初始化 ---------- */
 loadPlaylists();
